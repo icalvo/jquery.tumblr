@@ -80,7 +80,7 @@
             msg = arguments[0];
             if (arguments.length > 1) {
                 args = Array.prototype.slice.call(arguments);
-                msg = msg.format.apply(msg, args.slice(1));
+                msg = $.basics.format.apply(msg, args.slice(1));
             }
             statusCallback(msg);
         }
@@ -100,6 +100,9 @@
         }
 
         function successReadTags(tagIndex, allFinishedCallback, data) {
+            if (data.meta.status != 200) {
+                throw new Error("Invalid response from Tumblr");
+            }
             if (tagIndex == 0 || data.response.total_posts < bestTagCount) {
                 bestTagCount = data.response.total_posts;
                 bestTagIndex = tagIndex;
@@ -128,7 +131,7 @@
                 status("Offset {0}", offset);
                 if (tagIndex == -1) {
                     tpl = 'http://api.tumblr.com/v2/blog/{0}/posts?api_key={1}&limit={2}&offset={3}{4}&jsonp=?';
-                    uri = tpl.format(
+                    uri = $.basics.format(tpl,
                         domain,
                         apiKey,
                         limit,
@@ -138,7 +141,7 @@
                 else {
                     tpl = 'http://api.tumblr.com/v2/blog/{0}/posts?api_key={1}&limit={2}&offset={3}{4}&tag={5}&jsonp=?';
                     tag = tags[tagIndex].replace(" ", "%20");
-                    uri = tpl.format(
+                    uri = $.basics.format(tpl,
                         domain,
                         apiKey,
                         limit,
@@ -157,6 +160,9 @@
         }
         
         function successReadPosts(data) {
+            if (data.meta.status != 200) {
+                throw new Error("Invalid response from Tumblr");
+            }
             readPosts = data.response.posts;
             
             totalReadCount += readPosts.length;
@@ -168,8 +174,8 @@
             filteredCount = 0;
             $.each(readPosts, function(idx, post) {
                 currentPost = post;
-                currentPost.failedRules = new Array();
-                currentPost.failedRulesIndexes = new Array();
+                currentPost.tagCorrections = new Array();
+                currentPost.tagCorrectionsIndexes = new Array();
                 if (postPredicate(post, post.tags)) {
                     filteredCount += 1;
                     notifyPostCallback(post);
@@ -232,7 +238,7 @@
                             
                             result = result && arguments[i];
                             if (!arguments[i]) {
-                                currentPost.failedRulesIndexes.push(i);
+                                currentPost.tagCorrectionsIndexes.push(i);
                             }
                         }
                         return !result;
@@ -245,7 +251,7 @@
                     function tagrule(cond, tagname) {
                         ruleSatisfied = impl(cond, tag(tagname));
                         if (!ruleSatisfied) {
-                            currentPost.failedRules.push("Add tag " + tagname);
+                            currentPost.tagCorrections.push("Add tag " + tagname);
                         }
                         return (ruleSatisfied);
                     }

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Tumblr Advanced Search</title>
+    
+    <!-- jQuery -->
+	<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    
+    <!-- Libraries -->
+    <script type="text/javascript" src="js/jquery.basics.js"></script>
+    <script type="text/javascript" src="../src/jquery.tumblr.js"></script>
+
+    <!-- UI -->
+    <script type="text/javascript" src="jqueryui/js/jquery-ui-1.8.16.custom.min.js"></script>
+	<script type="text/javascript" src="edit_area/edit_area_full.js"></script>
+
+    <script type='text/javascript'>
+        // VERY IMPORTANT: USE YOUR API KEY HERE!!!!!!!!
+        const API_KEY = 'XyZqCuQUniTnKQLqaloKgBH5U0J0JkJV7cx0BJsXXYVWAjlOA6';
+        var htmltpl;
+
+        function status(msg) {
+            $("#status").append(msg + "\n");
+        }
+        
+        function renderPost(post) {
+                html =
+                    $.basics.format(htmltpl,
+                        post.photos[0].alt_sizes[0].url,
+                        $.basics.filter(post.photos[0].alt_sizes, function(si) { return si.width <= 100})[0].url,
+                        post.tagCorrections.join(", "),
+                        post.post_url,
+                        post.id,
+                        $.map(post.tags, function(tag) { return '<a href="#' + tag + '">' + tag + '</a>' }).join(", "));
+                $("#result").append(html);        
+        }
+        
+        $(function() {
+            htmltpl = $("#itemTemplate").html();
+            apiKey = API_KEY;
+            // initialisation
+            editAreaLoader.init({
+                id: "txtExpression"	// id of the textarea to transform		
+                ,start_highlight: true	// if start with highlight
+                ,allow_resize: "both"
+                ,allow_toggle: false
+                ,word_wrap: true
+                ,language: "en"
+                ,syntax: "js"	
+            });
+            
+            // initialisation
+            editAreaLoader.init({
+                id: "txtExpression2"	// id of the textarea to transform		
+                ,start_highlight: true	// if start with highlight
+                ,allow_resize: "both"
+                ,allow_toggle: false
+                ,word_wrap: true
+                ,language: "en"
+                ,syntax: "js"
+            });
+            
+			$("#btnSubmitTagList").click(function() {
+                $("#result").html("");
+                domain = $("#txtTumblrName").val() +  ".tumblr.com";
+                tags = $.map($("#txtTagList").val().split(","), $.trim);
+                options = {
+                    type: "photo",
+                    tags: $.basics.filter(tags, function(tag) { return tag.charAt(0) != "!" }),
+                    negativeTags: $.basics.filter(tags, function(tag) { return tag.charAt(0) == "!" }),
+                    statusCallback: status,
+                    successCallback: function() { $("#lblProgressTagList").hide() }
+                };
+                $("#lblProgressTagList").show();
+				$.tumblrReader(domain, apiKey, renderPost, options);
+            });
+            
+			$("#btnSubmitExpression").click(function() {
+                $("#result").html("");
+                domain = $("#txtTumblrName").val() +  ".tumblr.com";
+                options = {
+                    type: "photo",
+                    filterExpression: editAreaLoader.getValue("txtExpression"),
+                    statusCallback: status,
+                    successCallback: function() { $("#lblProgressExpression").hide() }
+                };
+                
+                $("#lblProgressExpression").show();
+				$.tumblrReader(domain, apiKey, renderPost, options);
+			});
+		
+            $("#tabs").tabs();
+        });
+    </script>
+    <link rel="stylesheet" href="jqueryui/css/ui-lightness/jquery-ui-1.8.16.custom.css" type="text/css" media="all" />
+    <style type="text/css">
+        .resultPanel {  }
+        #status {
+            font-size: small;
+            background-color: black;
+            color: yellow;
+            margin: 0;
+        }
+        #result {
+            border: 1px solid black; float: left;
+            border-collapse: collapse;
+            width: 100%;
+        }
+        .progress {
+            display: none;
+        }
+    </style>
+    
+</head>
+<body>
+    <script id="itemTemplate" type="text/html">
+        <tr><td><a href="{0}"><img src="{1}" /></a></td><td>{2}</td><td><a href="{3}">Post</a></td><td><a href="http://www.tumblr.com/edit/{4}">Edit</a></td><td>{5}</td></tr>
+    </script>
+
+    <h1 class="titulo">Tumblr advanced search</h1>
+    <div id="panelCommon">
+    <label for="txtTumblrName">Tumblr name</label>
+    <input type="text" id="txtTumblrName" value=""></input>.tumblr.com<br />
+    
+    <label for="txtTumblrName">Post type</label>
+    <select id="selType">
+        <option value="photo" selected="selected">Photo</option>
+        <option value="text">Text</option>
+        <option value="quote">Quote</option>
+        <option value="link">Link</option>
+        <option value="answer">Answer</option>
+        <option value="video">Video</option>
+        <option value="audio">Audio</option>
+        <option value="">ALL TYPES</option>
+    </select><br />
+    </div>
+<div id="tabs">
+	<ul>
+		<li><a href="#panelTagList">Tag list (fast!)</a></li>
+		<li><a href="#panelExpression">Javascript expression (ultra-flexible!)</a></li>
+		<li><a href="#panelLog">Status log</a></li>
+	</ul>
+    <div id="panelTagList">
+        <p>Enter a comma-separated list of tags. Posts that match all of the tags will be found. You can negate a tag by prepending it
+        with an exclamation mark (!).</p>
+        <input id="txtTagList" type="text" size="80"></input>
+        <button id="btnSubmitTagList">Send</button>
+        <span id="lblProgressTagList" class="progress">Processing...</span>
+    </div>
+
+    <div id="panelExpression">
+        <p>Enter a Javascript expression (without return or final semicolon). Posts that match the expression will be found. You can use a variable called "post" with the data returned by <a href="http://www.tumblr.com/docs/en/api/v2#posts">Tumblr API v2</a>. The following predicates are also available:</p>
+        <ul>
+        <li><b>tag(tagname):</b> Has the post given tag?</li>
+        <li><b>tagr(regexp):</b> Does any tag of the post matches the given regular expression?</li>
+        <li><b>impl(a, b):</b> Logical implication (Does a imply b?)</li>
+        <li><b>tagrule(condition, tagname):</b> Does condition imply tag(tagname)? In addition, if it fails, a recommendation will be shown besides the result post to add the given tagname to the post.</li>
+        <li><b>ruleset(a, b, c...):</b> Does any of the given conditions fail?</li>
+        </ul>
+        <textarea id="txtExpression" rows="20" cols="80">
+        </textarea>
+        <button id="btnSubmitExpression">Send</button>
+        <span id="lblProgressExpression" class="progress">Processing...</span>
+    </div>
+    <div id="panelLog">
+        <pre id="status"></pre>
+    </div>
+</div>
+
+<div class="resultPanel">
+    <table id="result">
+    </table>
+</div>
+</body>
+</html>
